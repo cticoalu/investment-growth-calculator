@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Investment Growth Calculator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f3;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 780px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      padding: 2rem;
+      border: 0.5px solid rgba(0,0,0,0.1);
+    }
+    h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+    .subtitle { font-size: 14px; color: #666; margin-bottom: 2rem; }
+    .mode-toggle {
+      display: flex; margin-bottom: 1.5rem;
+      border: 0.5px solid rgba(0,0,0,0.2);
+      border-radius: 8px; overflow: hidden; width: fit-content;
+    }
+    .mode-btn {
+      padding: 8px 18px; font-size: 13px; cursor: pointer;
+      border: none; background: transparent; color: #666;
+      transition: background 0.15s; font-family: inherit;
+    }
+    .mode-btn.active { background: #f0f0ee; color: #1a1a1a; font-weight: 500; }
+    .ci-controls {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1.5rem 2rem; margin-bottom: 1.5rem;
+    }
+    .ci-label { font-size: 13px; color: #666; margin-bottom: 6px; }
+    .ci-val { font-size: 15px; font-weight: 500; color: #1a1a1a; }
+    input[type=range] {
+      width: 100%; accent-color: #378add;
+      height: 4px; cursor: pointer;
+    }
+    select {
+      width: 100%; padding: 6px 8px; font-size: 14px;
+      border: 0.5px solid rgba(0,0,0,0.2); border-radius: 6px;
+      background: #fff; font-family: inherit; color: #1a1a1a;
+    }
+    .plan-note { font-size: 12px; color: #888; margin-top: 4px; }
+    .rate-section {
+      background: #f5f5f3; border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 1.5rem;
+    }
+    .rate-section-title {
+      font-size: 11px; font-weight: 500; color: #888;
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
+    }
+    .rate-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 2rem; }
+    .rate-divider {
+      display: flex; align-items: center;
+      gap: 10px; margin: 10px 0;
+    }
+    .rate-divider-line { flex: 1; height: 0.5px; background: rgba(0,0,0,0.12); }
+    .rate-divider-label { font-size: 11px; color: #aaa; white-space: nowrap; }
+    .rate-badge {
+      display: inline-block; font-size: 11px;
+      padding: 2px 8px; border-radius: 4px;
+      background: #e6f1fb; color: #185fa5; margin-left: 6px;
+    }
+    .ci-cards {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px; margin-bottom: 2rem;
+    }
+    .ci-card {
+      background: #f5f5f3; border-radius: 8px; padding: 14px 16px;
+    }
+    .ci-card-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .ci-card-val { font-size: 20px; font-weight: 500; color: #1a1a1a; }
+    .ci-card-sub { font-size: 12px; margin-top: 2px; color: #888; }
+    .legend {
+      display: flex; gap: 20px; margin-bottom: 10px;
+      font-size: 12px; color: #888; flex-wrap: wrap;
+    }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .swatch { width: 10px; height: 10px; border-radius: 2px; }
+    .chart-wrap { position: relative; width: 100%; height: 280px; }
+    .footer {
+      margin-top: 2rem; font-size: 12px; color: #aaa;
+      border-top: 0.5px solid rgba(0,0,0,0.08); padding-top: 1rem;
+      text-align: center;
+    }
+    @media (max-width: 520px) {
+      .ci-controls { grid-template-columns: 1fr; }
+      .rate-row { grid-template-columns: 1fr; }
+      .ci-cards { grid-template-columns: 1fr 1fr; }
+      .mode-btn { padding: 8px 12px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Investment Growth Calculator</h1>
+  <p class="subtitle">Model compound growth with custom, Roth IRA, or 401k contribution strategies</p>
+
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-custom" onclick="setMode('custom')">Custom</button>
+    <button class="mode-btn" id="btn-roth" onclick="setMode('roth')">Max Roth IRA</button>
+    <button class="mode-btn" id="btn-401k" onclick="setMode('401k')">Max 401k</button>
+  </div>
+
+  <div class="ci-controls">
+    <div>
+      <div class="ci-label">Initial investment</div>
+      <input type="range" id="principal" min="0" max="250000" step="1000" value="10000">
+      <div class="ci-val" id="principal-out">$10,000</div>
+    </div>
+    <div id="monthly-ctrl">
+      <div class="ci-label">Monthly contribution</div>
+      <input type="range" id="monthly" min="0" max="2000" step="25" value="200">
+      <div class="ci-val" id="monthly-out">$200 / mo</div>
+    </div>
+    <div id="roth-info" style="display:none;">
+      <div class="ci-label">Roth IRA contribution (2026)</div>
+      <div class="ci-val">$7,500 / yr → $625 / mo</div>
+      <div class="plan-note">+$500/yr each year · 2027: $8,000 · 2028: $8,500 · ...</div>
+    </div>
+    <div id="k401-info" style="display:none;">
+      <div class="ci-label">401k contribution (2026)</div>
+      <div class="ci-val">$24,500 / yr → $2,042 / mo</div>
+      <div class="plan-note">+$1,000/yr each year · 2027: $25,500 · 2028: $26,500 · ...</div>
+    </div>
+    <div>
+      <div class="ci-label">Compounding frequency</div>
+      <select id="freq">
+        <option value="1">Annually</option>
+        <option value="12" selected>Monthly</option>
+        <option value="365">Daily</option>
+      </select>
+    </div>
+    <div>
+      <div class="ci-label">Years</div>
+      <input type="range" id="years" min="1" max="40" step="1" value="20">
+      <div class="ci-val" id="years-out">20 years</div>
+    </div>
+  </div>
+
+  <div class="rate-section">
+    <div class="rate-section-title">Annual return rate</div>
+    <div class="rate-row">
+      <div>
+        <div class="ci-label">Near-term rate <span class="rate-badge" id="nearterm-badge">Yrs 1–3</span></div>
+        <input type="range" id="rate-near" min="1" max="20" step="0.5" value="10.5">
+        <div class="ci-val" id="rate-near-out">10.5%</div>
+      </div>
+      <div>
+        <div class="ci-label">Near-term duration</div>
+        <input type="range" id="rate-near-yrs" min="1" max="10" step="1" value="3">
+        <div class="ci-val" id="rate-near-yrs-out">3 years</div>
+      </div>
+    </div>
+    <div class="rate-divider">
+      <div class="rate-divider-line"></div>
+      <div class="rate-divider-label">then transitions to</div>
+      <div class="rate-divider-line"></div>
+    </div>
+    <div class="rate-row">
+      <div>
+        <div class="ci-label">Long-term rate</div>
+        <input type="range" id="rate-long" min="1" max="15" step="0.5" value="7.5">
+        <div class="ci-val" id="rate-long-out">7.5%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ci-cards">
+    <div class="ci-card">
+      <div class="ci-card-label">Final balance</div>
+      <div class="ci-card-val" id="final-val">—</div>
+      <div class="ci-card-sub" id="mult-val"></div>
+    </div>
+    <div class="ci-card">
+      <div class="ci-card-label">Total contributed</div>
+      <div class="ci-card-val" id="contrib-val">—</div>
+      <div class="ci-card-sub" id="contrib-sub"></div>
+    </div>
+    <div class="ci-card">
+      <div class="ci-card-label">Est. market returns</div>
+      <div class="ci-card-val" id="interest-val">—</div>
+      <div class="ci-card-sub" id="interest-pct"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:#378add;"></span>Est. market returns</span>
+    <span><span class="swatch" style="background:#97c459;"></span>Contributions</span>
+    <span><span class="swatch" style="background:#f0997b;"></span>Initial principal</span>
+    <span><span class="swatch" style="background:rgba(55,138,221,0.15); border:1px dashed #378add;"></span>Near-term period</span>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="footer">
+    For illustrative purposes only. Not financial advice. Market returns are not guaranteed.
+  </div>
+</div>
+
+<script>
+const fmt = v => '$' + Math.round(v).toLocaleString();
+let myChart, mode = 'custom';
+const BASE_YEAR = 2026;
+const PLANS = { roth: { base: 7500, step: 500 }, '401k': { base: 24500, step: 1000 } };
+let savedBalances = [], savedNearYrs = 3;
+
+function setMode(m) {
+  mode = m;
+  ['custom','roth','401k'].forEach(id => {
+    document.getElementById('btn-' + id).classList.toggle('active', m === id);
+  });
+  document.getElementById('monthly-ctrl').style.display = m === 'custom' ? '' : 'none';
+  document.getElementById('roth-info').style.display = m === 'roth' ? '' : 'none';
+  document.getElementById('k401-info').style.display = m === '401k' ? '' : 'none';
+  calc();
+}
+
+function annualContribForYear(y) {
+  if (mode === 'custom') return +document.getElementById('monthly').value * 12;
+  const p = PLANS[mode];
+  return p.base + y * p.step;
+}
+
+function calc() {
+  const P = +document.getElementById('principal').value;
+  const M = +document.getElementById('monthly').value;
+  const Y = +document.getElementById('years').value;
+  const n = +document.getElementById('freq').value;
+  const rNear = +document.getElementById('rate-near').value / 100;
+  const rLong = +document.getElementById('rate-long').value / 100;
+  const nearYrs = Math.min(+document.getElementById('rate-near-yrs').value, Y);
+
+  document.getElementById('principal-out').textContent = fmt(P);
+  document.getElementById('monthly-out').textContent = fmt(M) + ' / mo';
+  document.getElementById('years-out').textContent = Y + ' year' + (Y > 1 ? 's' : '');
+  document.getElementById('rate-near-out').textContent = (+document.getElementById('rate-near').value).toFixed(1) + '%';
+  document.getElementById('rate-long-out').textContent = (+document.getElementById('rate-long').value).toFixed(1) + '%';
+  document.getElementById('rate-near-yrs-out').textContent = nearYrs + ' year' + (nearYrs > 1 ? 's' : '');
+  document.getElementById('nearterm-badge').textContent = 'Yrs 1–' + nearYrs;
+  savedNearYrs = nearYrs;
+
+  const labels = ['Now'], balances = [P], contribByYear = [0];
+  let balance = P, totalContrib = P;
+
+  for (let y = 0; y < Y; y++) {
+    const r = y < nearYrs ? rNear : rLong;
+    const rpp = r / n;
+    const ac = annualContribForYear(y);
+    const cpp = ac / n;
+    for (let p = 0; p < n; p++) balance = balance * (1 + rpp) + cpp;
+    totalContrib += ac;
+    balances.push(balance);
+    contribByYear.push(ac);
+    labels.push(String(BASE_YEAR + y + 1));
+  }
+
+  savedBalances = balances;
+  const finalB = balances[Y];
+  const interestEarned = finalB - totalContrib;
+
+  document.getElementById('final-val').textContent = fmt(finalB);
+  document.getElementById('mult-val').textContent = (finalB / Math.max(totalContrib, 1)).toFixed(2) + 'x total invested';
+  document.getElementById('contrib-val').textContent = fmt(totalContrib);
+  if (mode !== 'custom') {
+    const p = PLANS[mode];
+    document.getElementById('contrib-sub').textContent = fmt(P) + ' initial · limit reaches ' + fmt(p.base + (Y-1)*p.step) + '/yr by ' + (BASE_YEAR + Y);
+  } else {
+    document.getElementById('contrib-sub').textContent = fmt(P) + ' initial + ' + fmt(totalContrib - P) + ' added';
+  }
+  document.getElementById('interest-val').textContent = fmt(Math.max(0, interestEarned));
+  document.getElementById('interest-pct').textContent = Math.round(Math.max(0, interestEarned) / finalB * 100) + '% of final balance';
+
+  let rc = P;
+  const cumContrib = [P];
+  for (let y = 0; y < Y; y++) { rc += contribByYear[y+1]; cumContrib.push(rc); }
+  const principalLayer = balances.map(() => P);
+  const contribLayer = cumContrib.map(c => c - P);
+  const interestLayer = balances.map((b, i) => Math.max(0, b - cumContrib[i]));
+
+  const nearHighlightPlugin = {
+    id: 'nearHighlight',
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea) return;
+      const xScale = scales.x;
+      const endIdx = Math.min(savedNearYrs, chart.data.labels.length - 1);
+      if (endIdx < 1) return;
+      const step = xScale.getPixelForValue(1) - xScale.getPixelForValue(0);
+      const x0 = xScale.getPixelForValue(0) - step / 2;
+      const x1 = xScale.getPixelForValue(endIdx) + step / 2;
+      ctx.save();
+      ctx.fillStyle = 'rgba(55,138,221,0.07)';
+      ctx.fillRect(x0, chartArea.top, x1 - x0, chartArea.height);
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = 'rgba(55,138,221,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x1, chartArea.top);
+      ctx.lineTo(x1, chartArea.bottom);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  if (myChart) myChart.destroy();
+  myChart = new Chart(document.getElementById('chart'), {
+    type: 'bar',
+    plugins: [nearHighlightPlugin],
+    data: {
+      labels,
+      datasets: [
+        { label: 'Est. returns', data: interestLayer, backgroundColor: '#378add', stack: 'a' },
+        { label: 'Contributions', data: contribLayer, backgroundColor: '#97c459', stack: 'a' },
+        { label: 'Principal', data: principalLayer, backgroundColor: '#f0997b', stack: 'a' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: ctx => {
+              const i = ctx[0].dataIndex;
+              const total = fmt(savedBalances[i]);
+              const isNear = i > 0 && i <= savedNearYrs;
+              const rLabel = isNear
+                ? (+document.getElementById('rate-near').value).toFixed(1) + '% near-term rate'
+                : (+document.getElementById('rate-long').value).toFixed(1) + '% long-term rate';
+              let t = ctx[0].label + ' · Total: ' + total;
+              if (i > 0) t += '\n' + rLabel;
+              if (mode !== 'custom' && i > 0) {
+                const p = PLANS[mode];
+                t += ' · limit: ' + fmt(p.base + (i-1)*p.step) + '/yr';
+              }
+              return t;
+            },
+            label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.raw)
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { maxTicksLimit: 11, color: '#888', maxRotation: 45 }, grid: { display: false } },
+        y: { stacked: true, ticks: { callback: v => '$' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v), color: '#888' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      }
+    }
+  });
+}
+
+['principal','monthly','rate-near','rate-near-yrs','rate-long','years','freq'].forEach(id => {
+  document.getElementById(id).addEventListener('input', calc);
+});
+
+calc();
+</script>
+</body>
+</html>
