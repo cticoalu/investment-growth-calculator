@@ -27,7 +27,7 @@ An interactive, browser-based investment growth calculator with support for cust
 - **Hover tooltips** showing total balance, rate applied, and contribution limit for that year
 
 - **Adjustable parameters**
-  - Initial investment up to $250,000
+  - Initial investment up to $1,000,000
   - 1–40 year horizon
   - Annual, monthly, or daily compounding
   - Return rates from 1% to 20%
@@ -48,7 +48,7 @@ The default near-term rate of **10.5%** reflects the weighted projected 2026 ret
 ## How to Use
 
 1. Select a contribution mode: **Custom**, **Max Roth IRA**, or **Max 401k**
-2. Set your **initial investment** (up to $250,000)
+2. Set your **initial investment** (up to $1,000,000)
 3. Adjust your **annual return rates** — near-term and long-term
 4. Set your **time horizon** in years
 5. Hover over any bar on the chart to see the exact balance and breakdown for that year
